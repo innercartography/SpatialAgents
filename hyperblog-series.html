@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spatial Agents — A Hyperblog Series</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300;1,9..144,300;1,9..144,400&display=swap');
+
+  :root {
+    --void: #050508;
+    --panel: #13131f;
+    --border: rgba(255,255,255,0.06);
+    --text: #d4d4e8;
+    --muted: #6b6b8a;
+    --accent-a: #7eb8f7;
+    --accent-b: #b48ef7;
+    --accent-c: #7ef7c8;
+    --accent-d: #f7c87e;
+    --hot: #ffffff;
+    --neon-blue: #00cfff;
+    --neon-violet: #cf00ff;
+    --neon-green: #00ffb3;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--void);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  .field { position:fixed; inset:0; pointer-events:none; z-index:0; }
+  .field canvas { width:100%; height:100%; }
+
+  .container {
+    position:relative; z-index:1;
+    max-width:860px; margin:0 auto; padding:0 24px;
+  }
+
+  /* ── MASTHEAD ── */
+  .masthead {
+    padding: 80px 0 64px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* scanlines */
+  .masthead::before {
+    content:'';
+    position:absolute; inset:0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 3px,
+      rgba(0,207,255,0.013) 3px, rgba(0,207,255,0.013) 4px
+    );
+    pointer-events:none; z-index:0;
+  }
+  .masthead > * { position:relative; z-index:1; }
+
+  .series-label {
+    font-size:11px; letter-spacing:0.18em; text-transform:uppercase;
+    color:var(--accent-a); margin-bottom:32px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .series-label::before { content:''; width:32px; height:1px; background:var(--accent-a); }
+
+  /* NEON TITLE */
+  .neon-title {
+    display:block;
+    font-family:'Syne',sans-serif;
+    font-size:clamp(38px,7vw,72px);
+    font-weight:800;
+    line-height:1.05;
+    letter-spacing:-0.03em;
+    margin-bottom:28px;
+  }
+  .neon-line { display:block; }
+
+  .neon-a {
+    color: var(--neon-blue);
+    text-shadow: 0 0 4px var(--neon-blue), 0 0 14px var(--neon-blue), 0 0 30px rgba(0,207,255,0.45);
+    animation: flk-a 8s infinite;
+  }
+  .neon-b {
+    color: var(--hot);
+    font-family: 'Fraunces',serif; font-style:italic; font-weight:300; font-size:0.84em;
+    text-shadow: 0 0 6px rgba(255,255,255,0.5), 0 0 18px rgba(207,0,255,0.35);
+    animation: flk-b 11s infinite;
+  }
+  .neon-c {
+    color: var(--neon-violet);
+    text-shadow: 0 0 4px var(--neon-violet), 0 0 16px var(--neon-violet), 0 0 34px rgba(207,0,255,0.4);
+    animation: flk-c 7s infinite;
+  }
+
+  @keyframes flk-a {
+    0%,89%,95%,100% { opacity:1; }
+    90%  { opacity:.35; text-shadow:none; }
+    91%  { opacity:1;   text-shadow:0 0 4px var(--neon-blue),0 0 14px var(--neon-blue),0 0 30px rgba(0,207,255,0.45); }
+    93%  { opacity:.7;  }
+    94%  { opacity:1;   }
+  }
+  @keyframes flk-b {
+    0%,44%,50%,79%,83%,100% { opacity:1; }
+    45%  { opacity:.25; text-shadow:none; }
+    46%  { opacity:.85; }
+    48%  { opacity:.5;  }
+    49%  { opacity:1;   }
+    80%  { opacity:.6;  }
+    81%  { opacity:1;   }
+  }
+  @keyframes flk-c {
+    0%,19%,25%,69%,73%,100% { opacity:1; }
+    20%  { opacity:.2;  text-shadow:none; }
+    21%  { opacity:1;   text-shadow:0 0 4px var(--neon-violet),0 0 16px var(--neon-violet),0 0 34px rgba(207,0,255,0.4); }
+    23%  { opacity:.75; }
+    24%  { opacity:1;   }
+    70%  { opacity:.5;  }
+    71%  { opacity:1;   }
+  }
+
+  .masthead .deck {
+    font-family:'Fraunces',serif; font-size:17px; font-weight:300;
+    color:var(--muted); max-width:540px; line-height:1.65; margin-bottom:28px;
+  }
+  .masthead .meta {
+    font-size:11px; letter-spacing:0.1em; color:var(--muted); text-transform:uppercase;
+  }
+
+  /* ── NAV ── */
+  .series-nav {
+    padding:28px 0; border-bottom:1px solid var(--border);
+    display:flex; gap:8px; flex-wrap:wrap;
+  }
+  .nav-pill {
+    font-family:'DM Mono',monospace; font-size:11px; letter-spacing:0.07em;
+    padding:6px 14px; border:1px solid var(--border); border-radius:2px;
+    color:var(--muted); cursor:pointer; transition:all .2s; background:transparent;
+  }
+  .nav-pill:hover, .nav-pill.active {
+    border-color:var(--neon-blue); color:var(--neon-blue);
+    background:rgba(0,207,255,0.04);
+    text-shadow:0 0 8px rgba(0,207,255,0.35);
+  }
+
+  /* ── POSTS ── */
+  .post { padding:72px 0; border-bottom:1px solid var(--border); display:none; }
+  .post.visible { display:block; }
+
+  .post-number { font-size:11px; letter-spacing:0.2em; text-transform:uppercase; color:var(--muted); margin-bottom:16px; }
+  .post-number span { color:var(--accent-a); }
+
+  .post h2 {
+    font-family:'Syne',sans-serif; font-size:clamp(26px,4vw,42px);
+    font-weight:700; line-height:1.1; color:var(--hot);
+    letter-spacing:-0.02em; margin-bottom:12px;
+  }
+  .post h2 em { font-family:'Fraunces',serif; font-style:italic; font-weight:300; color:var(--accent-b); }
+
+  .post .subtitle {
+    font-family:'Fraunces',serif; font-size:16px; font-weight:300; font-style:italic;
+    color:var(--muted); margin-bottom:40px; padding-bottom:32px;
+    border-bottom:1px solid var(--border);
+  }
+
+  .post p {
+    font-family:'Fraunces',serif; font-size:16px; font-weight:300;
+    line-height:1.85; color:var(--text); margin-bottom:24px; max-width:680px;
+  }
+  .post p strong {
+    font-weight:400; color:var(--hot);
+    font-family:'DM Mono',monospace; font-size:13px; letter-spacing:0.03em;
+  }
+
+  /* ── CONCEPT LINKS ── */
+  .concept {
+    color:var(--neon-green); text-decoration:none;
+    border-bottom:1px dashed rgba(0,255,179,0.35);
+    transition:all .2s; cursor:pointer; font-style:normal;
+    position:relative;
+  }
+  .concept:hover {
+    color:#fff; border-bottom-color:var(--neon-green);
+    text-shadow:0 0 10px rgba(0,255,179,0.45);
+  }
+  .concept.open {
+    color:#fff;
+    border-bottom:1px solid var(--neon-green);
+    text-shadow:0 0 10px rgba(0,255,179,0.45);
+  }
+
+  /* definition panel — anchored inline below the word */
+  .def-panel {
+    display:none;
+    position:absolute;
+    top:calc(100% + 10px);
+    left:0;
+    z-index:999;
+    width:300px;
+    background:var(--panel);
+    border:1px solid rgba(0,255,179,0.22);
+    padding:16px 18px 14px;
+    box-shadow:0 12px 48px rgba(0,0,0,0.7), 0 0 24px rgba(0,255,179,0.06);
+    animation:panel-in .15s ease;
+    pointer-events:auto;
+  }
+  /* flip right if overflowing left edge */
+  .def-panel.flip-right { left:auto; right:0; }
+
+  @keyframes panel-in {
+    from { opacity:0; transform:translateY(-4px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+
+  .concept.open .def-panel { display:block; }
+
+  .def-panel::before {
+    content:'';
+    position:absolute; top:-6px; left:16px;
+    width:10px; height:10px;
+    background:var(--panel);
+    border-left:1px solid rgba(0,255,179,0.22);
+    border-top:1px solid rgba(0,255,179,0.22);
+    transform:rotate(45deg);
+  }
+  .def-panel.flip-right::before { left:auto; right:16px; }
+
+  .dp-term {
+    font-family:'DM Mono',monospace;
+    font-size:10px; letter-spacing:0.15em; text-transform:uppercase;
+    color:var(--neon-green); margin-bottom:8px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .dp-close {
+    cursor:pointer; color:var(--muted); font-size:14px; line-height:1;
+    transition:color .15s; padding:0 2px;
+  }
+  .dp-close:hover { color:var(--hot); }
+
+  .dp-def {
+    font-family:'Fraunces',serif; font-size:13px; font-weight:300;
+    line-height:1.6; color:var(--text); margin-bottom:10px;
+  }
+
+  .dp-link {
+    display:inline-flex; align-items:center; gap:5px;
+    font-family:'DM Mono',monospace; font-size:10px; letter-spacing:0.1em;
+    color:var(--neon-blue); text-decoration:none;
+    border-bottom:1px solid rgba(0,207,255,0.25);
+    padding-bottom:1px;
+    transition:all .15s;
+    animation:link-pulse 2.5s ease-in-out infinite;
+  }
+  .dp-link:hover {
+    color:#fff; border-bottom-color:var(--neon-blue);
+    text-shadow:0 0 8px rgba(0,207,255,0.5);
+    animation:none;
+  }
+  @keyframes link-pulse {
+    0%,100% { opacity:1; }
+    50%      { opacity:.65; }
+  }
+
+  /* ── PULL ── */
+  .pull { margin:40px 0; padding:28px 32px; border-left:2px solid var(--accent-b); background:rgba(180,142,247,0.04); }
+  .pull p { font-family:'Fraunces',serif; font-size:19px; font-weight:300; font-style:italic; color:var(--hot); line-height:1.55; margin:0; }
+
+  /* ── CODE ── */
+  .code-block { margin:32px 0; background:var(--panel); border:1px solid var(--border); padding:24px; overflow-x:auto; }
+  .code-block .lbl { font-size:10px; letter-spacing:0.15em; text-transform:uppercase; color:var(--accent-c); margin-bottom:16px; display:block; }
+  .code-block pre { font-family:'DM Mono',monospace; font-size:12px; line-height:1.7; color:var(--text); white-space:pre; }
+  .k { color:var(--accent-b); } .s { color:var(--accent-d); } .cm { color:var(--muted); font-style:italic; }
+
+  /* ── DIAGRAM ── */
+  .diagram { margin:36px 0; padding:28px 32px; background:var(--panel); border:1px solid var(--border); font-family:'DM Mono',monospace; font-size:12px; line-height:1.9; color:var(--muted); overflow-x:auto; }
+  .ha { color:var(--accent-a); } .hb { color:var(--accent-b); } .hc { color:var(--accent-c); } .hd { color:var(--accent-d); }
+
+  /* ── SECTION HEAD ── */
+  .sh {
+    font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:var(--accent-c);
+    margin:48px 0 20px; display:flex; align-items:center; gap:12px;
+  }
+  .sh::after { content:''; flex:1; height:1px; background:var(--border); max-width:120px; }
+
+  /* ── OVERLAP VIZ ── */
+  .ov-wrap { position:relative; height:160px; margin:40px 0; display:flex; align-items:center; justify-content:center; }
+  .ov-circle {
+    position:absolute; width:140px; height:140px; border-radius:50%; border:1px solid;
+    display:flex; align-items:center; justify-content:center;
+    font-size:10px; letter-spacing:0.08em; text-transform:uppercase; text-align:center; padding:0 28px;
+  }
+  .ov-zone { position:absolute; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; text-align:center; z-index:10; }
+
+  /* ── TAGS ── */
+  .tags { display:flex; gap:8px; flex-wrap:wrap; margin-top:40px; padding-top:32px; border-top:1px solid var(--border); }
+  .tag { font-family:'DM Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; padding:4px 10px; border:1px solid var(--border); color:var(--muted); }
+
+  /* ── FOOTER ── */
+  .footer { padding:56px 0; display:flex; flex-direction:column; gap:10px; }
+  .footer-line { font-size:11px; letter-spacing:0.1em; color:var(--muted); text-transform:uppercase; }
+  .footer-line a { color:var(--accent-a); text-decoration:none; transition:all .2s; }
+  .footer-line a:hover { color:var(--neon-blue); text-shadow:0 0 8px rgba(0,207,255,0.4); }
+</style>
+</head>
+<body>
+
+<div class="field"><canvas id="cv"></canvas></div>
+
+<div class="container">
+
+  <header class="masthead">
+    <div class="series-label">Spatial Agents — A Hyperblog Series</div>
+    <span class="neon-title">
+      <span class="neon-line neon-a">The Space</span>
+      <span class="neon-line neon-b">Between Thinking</span>
+      <span class="neon-line neon-c">and Building</span>
+    </span>
+    <p class="deck">Five dispatches on spatial computing, agent coordination, knowledge graphs, and the environments where human intention meets machine execution.</p>
+    <div class="meta">March 2026 &nbsp;·&nbsp; innercartography</div>
+  </header>
+
+  <nav class="series-nav">
+    <button class="nav-pill active" onclick="show(0)">01 / The Bead &amp; the Graph</button>
+    <button class="nav-pill" onclick="show(1)">02 / The Legible Space</button>
+    <button class="nav-pill" onclick="show(2)">03 / Ontology Collisions</button>
+    <button class="nav-pill" onclick="show(3)">04 / The Territorial Circuit</button>
+    <button class="nav-pill" onclick="show(4)">05 / Can an Agent Read a Room?</button>
+  </nav>
+
+  <!-- ══ POST 01 ══ -->
+  <article class="post visible" id="post-0">
+    <div class="post-number">Post <span>01 / 05</span></div>
+    <h2>The Bead<br>and the <em>Graph</em></h2>
+    <p class="subtitle">Why the Agent Flywheel is a spatial problem in disguise — and what linear thinkers miss about it</p>
+
+    <p>The <a class="concept" data-term="Agent Flywheel" data-def="A methodology for AI-assisted software development: write an exhaustive markdown plan, convert it into self-contained work units called beads, polish them iteratively across multiple passes, then launch a swarm of coding agents to execute them in parallel. Coordination happens through graph-theory routing, a shared message system, and file reservation — not a central controller." data-link="https://agent-flywheel.com/complete-guide">Agent Flywheel</a> methodology describes a loop: write an exhaustive markdown plan, convert it into beads, polish those beads, launch a swarm of agents to execute them. On the surface it looks like a project management system. Underneath it is a topology problem.</p>
+
+    <p>A <a class="concept" data-term="Bead" data-def="A self-contained unit of executable memory in the Agent Flywheel stack. Unlike a task, a bead carries its own context, reasoning, dependency links, and verification criteria — everything an agent needs to execute it without asking a human for clarification. Beads are stored as JSONL files that commit alongside code." data-link="https://agent-flywheel.com/complete-guide">bead</a> is not a task. It is a self-contained unit of executable memory — carrying its own context, reasoning, dependencies, and verification criteria. A task assumes a person will fill in the gaps. A bead assumes an agent will execute exactly what it contains and nothing more.</p>
+
+    <div class="pull">
+      <p>"Once you have the beads in good shape based on a great markdown plan, I almost view the project as a foregone conclusion."<br>— Jeffrey Emanuel, Agent Flywheel</p>
+    </div>
+
+    <p>When you generate 347 beads from a 5,500-line plan and overlay their dependency structure, you do not have a list. You have a <a class="concept" data-term="Directed Acyclic Graph (DAG)" data-def="A graph where edges point in one direction and no path loops back to its origin. In software development, tasks are nodes and 'must complete before' relationships are edges. The shape of a DAG encodes execution order, critical paths, and bottlenecks — information that is spatially obvious but invisible in a flat list." data-link="https://en.wikipedia.org/wiki/Directed_acyclic_graph">directed acyclic graph</a> — with roots, leaves, bottlenecks, and critical paths. The tool <strong>bv</strong> computes <a class="concept" data-term="PageRank" data-def="An algorithm originally developed at Google to rank web pages by counting and weighting inbound links. Applied to a bead graph, PageRank identifies which beads are most depended upon — the foundational nodes whose completion unblocks the most downstream work. High PageRank = work everything else is waiting on." data-link="https://en.wikipedia.org/wiki/PageRank">PageRank</a> and <a class="concept" data-term="Betweenness Centrality" data-def="A graph metric measuring how often a node appears on the shortest path between other node pairs. In a bead graph, high betweenness means a bead is a bridge — blocking many independent chains of work simultaneously — making it urgent even when its own PageRank is moderate." data-link="https://en.wikipedia.org/wiki/Betweenness_centrality">betweenness centrality</a> across this graph to tell agents which node to claim next. This is graph theory applied to software construction.</p>
+
+    <div class="sh">The topology already exists</div>
+
+    <p>The problem is that this graph gets flattened into CLI output. Run <strong>bv --robot-triage</strong> and receive a ranked text list. Run <strong>br list --status open</strong> and receive JSON. The topology is computed but never rendered. The human operator reconstructs it mentally — precisely the kind of linear-to-spatial translation that creates unnecessary cognitive load.</p>
+
+    <div class="diagram">
+<span class="ha">DEPENDENCY GRAPH</span> — what bv computes but never shows you
+
+<span class="hb">br-001</span> [foundation]        PageRank: 0.91   Betweenness: 0.87
+  └─ <span class="hc">br-012</span> [auth layer]      PageRank: 0.74   Betweenness: 0.61
+      └─ <span class="hc">br-023</span> [API routes]    PageRank: 0.52   Betweenness: 0.29
+          └─ <span class="ha">br-034</span> [UI forms]      PageRank: 0.21   Betweenness: 0.08
+  └─ <span class="hd">br-015</span> [schema]         PageRank: 0.68   Betweenness: 0.55
+
+<span style="color:var(--muted);font-style:italic">// This is a space with shape, depth, and a critical path.
+// All of that is invisible in terminal output.</span>
+    </div>
+
+    <p>The insight: <strong>beads are nodes in a navigable space</strong>, not items in a list. Their relationships encode priorities, risks, and flow. The spatial structure of the bead graph is the project's geometry — and the most efficient way to read geometry is to see it.</p>
+
+    <div class="sh">What this implies</div>
+
+    <p>Render the bead graph in three dimensions — position encoding dependency depth, size encoding PageRank, brightness encoding urgency — and you have a navigable map of the project. An agent querying <strong>bv --robot-next</strong> and a human glancing at the graph read the same information through different interfaces against the same underlying truth. That is not a visualization feature. That is a different architecture for how work is understood between humans and machines.</p>
+
+    <div class="tags">
+      <span class="tag">agent flywheel</span><span class="tag">bead graphs</span>
+      <span class="tag">spatial computing</span><span class="tag">graph topology</span>
+      <span class="tag">developer tools</span>
+    </div>
+  </article>
+
+  <!-- ══ POST 02 ══ -->
+  <article class="post" id="post-1">
+    <div class="post-number">Post <span>02 / 05</span></div>
+    <h2>The <em>Legible</em><br>Space</h2>
+    <p class="subtitle">Minimum instrumentation for environments readable by both humans and AI agents — without either compromising the other</p>
+
+    <p>The central design question for spatial AI environments is not aesthetic. It is epistemic: what is the minimum structure a space needs to carry meaning for two fundamentally different kinds of reader simultaneously?</p>
+
+    <p>One approach answers with office metaphor — agents sit at desks, gather at conference tables. Immediately legible to humans because it maps onto familiar social topology. But for an agent, the office layout is costume. The agent strips the metaphor to reach the process state underneath. Readable, but at a cost.</p>
+
+    <p>A better path: encode actual process state directly into spatial structure. Pipe live data into a rendered environment. Let the space reflect what is actually happening rather than performing a metaphor for it. Add an audio layer for humans. Output a <a class="concept" data-term="Delta Feed" data-def="A stream of state-change events rather than full state snapshots. Instead of querying 'what is true now,' a delta feed says 'here is what changed, and when.' More compute-efficient for agents monitoring large graphs — they process only changes rather than re-reading entire current state." data-link="https://en.wikipedia.org/wiki/Change_data_capture">delta feed</a> for agents. Same truth. Two renderers.</p>
+
+    <div class="pull">
+      <p>The goal is not a space that looks the same to humans and agents. It is a space that means the same thing through different channels.</p>
+    </div>
+
+    <div class="sh">Four layers — no more</div>
+
+    <div class="diagram">
+<span class="ha">TRUTH LAYER</span>
+  Raw process state: bead status, file reservations,
+  agent activity, dependency resolution, token counts.
+  Ground truth. Never shown directly. Always computed.
+         ↓
+<span class="hb">SEMANTIC LAYER</span>
+  Interpreted relationships: clusters, priorities,
+  bottlenecks, attention. <span class="hb">This is what agents read.</span>
+  Queryable as structured data. Always current.
+         ↓
+<span class="hc">PERCEPTUAL LAYER</span>
+  Spatial rendering of the semantic layer.
+  <span class="hc">This is what humans read.</span>
+  Position = relationship. Brightness = priority.
+  Motion = change. Color = domain.
+         ↑
+<span class="hd">INTENTION LAYER</span>
+  Human gestures, gaze, voice writing back to
+  the semantic layer — which agents immediately read.
+    </div>
+
+    <p>Agents never need to see the perceptual layer. Humans never need to see the truth layer. Both operate on the <a class="concept" data-term="Semantic Layer" data-def="An interpreted representation of raw data that encodes meaning — relationships, priorities, clusters, and state — rather than just facts. The semantic layer sits between raw data and its visual rendering, and is the shared read surface for both human-facing interfaces and machine-readable feeds." data-link="https://en.wikipedia.org/wiki/Semantic_layer">semantic layer</a> through different interfaces. The space is the semantic layer made navigable.</p>
+
+    <div class="sh">What stays under the hood</div>
+
+    <p>Raw dependency mathematics, file reservation data structures, token counts, bead JSONL contents — these drive the visible layer but humans never see the numbers. They see the consequence: proximity instead of dependency scores, brightness instead of priority rankings, warmth instead of domain labels, ambient sound instead of idle/active flags. The computation is complete. The rendering is appropriate to the reader.</p>
+
+    <div class="sh">All layers accessible, none forced</div>
+
+    <p>This is not about hiding information. A senior engineer wanting raw PageRank scores can lens into the truth layer. A newcomer navigates the perceptual layer without drowning. A city works the same way — most people see streets and buildings, urban planners see zoning and flow, civil engineers see load tolerances. All simultaneously true. All accessible. None forced on anyone.</p>
+
+    <div class="sh">The intention layer is the unsolved problem</div>
+
+    <p>Current spatial tools solve the read direction adequately. Neither fully solves the write direction. A human looking at a bright cluster wanting to redirect agent effort currently exits the spatial experience, opens a terminal, writes a prompt. The intermediary space should accept that intention directly — gaze, gesture, or voice translating into bead priority changes without leaving the environment. <strong>Moving through the space should be communicating with it</strong> — for humans and agents alike.</p>
+
+    <div class="tags">
+      <span class="tag">spatial interfaces</span><span class="tag">semantic layer</span>
+      <span class="tag">dual legibility</span><span class="tag">webxr</span>
+      <span class="tag">human-ai collaboration</span>
+    </div>
+  </article>
+
+  <!-- ══ POST 03 ══ -->
+  <article class="post" id="post-2">
+    <div class="post-number">Post <span>03 / 05</span></div>
+    <h2>Ontology<br><em>Collisions</em></h2>
+    <p class="subtitle">Why the spaces between knowledge graphs are not problems to resolve but productive zones to inhabit</p>
+
+    <p><a class="concept" data-term="Multi-Ontology Knowledge Graphs" data-def="Knowledge graphs built from multiple independently developed ontologies — formal schemas defining concepts, categories, and the relationships between them within a domain. When two ontologies describe overlapping territory using different terms and hierarchies, their intersection creates a collision zone that standard alignment tries to resolve but spatial approaches preserve as productive ambiguity." data-link="https://en.wikipedia.org/wiki/Ontology_(information_science)">Multi-ontology knowledge graphs</a> have a standard problem statement: two schemas describe overlapping domains using different terms, different hierarchies, different edge semantics. The standard solution is alignment — find the mappings, resolve the conflicts, produce a unified representation.</p>
+
+    <p>This framing treats collision as error. But collision is signal. The overlap between two ontologies that developed independently to describe the same phenomenon contains information that neither ontology holds alone — specifically, it contains the shape of the thing that both were approximating.</p>
+
+    <div class="pull">
+      <p>The space between ontologies is not a gap to bridge. It is a zone where the territory reveals itself more clearly than it does inside either map.</p>
+    </div>
+
+    <div class="sh">What collision zones actually contain</div>
+
+    <div class="ov-wrap">
+      <div class="ov-circle" style="left:calc(50% - 95px);border-color:rgba(126,184,247,0.4);background:rgba(126,184,247,0.03);color:var(--accent-a);">
+        Ontology A<br><span style="color:var(--muted);font-size:9px;display:block;margin-top:4px">domain terms<br>&amp; hierarchy</span>
+      </div>
+      <div class="ov-circle" style="left:calc(50% - 45px);border-color:rgba(180,142,247,0.4);background:rgba(180,142,247,0.03);color:var(--accent-b);">
+        Ontology B<br><span style="color:var(--muted);font-size:9px;display:block;margin-top:4px">domain terms<br>&amp; hierarchy</span>
+      </div>
+      <div class="ov-zone" style="left:calc(50% - 10px);color:var(--accent-c);">
+        <div style="font-size:18px">⊕</div>
+        <div style="font-size:9px;letter-spacing:0.1em;margin-top:2px">signal</div>
+      </div>
+    </div>
+
+    <p>When a medical ontology and a social determinants ontology both have nodes for "housing instability," the fact that they connect it to different neighbors — one to diagnostic codes, one to community resources — is not a reconciliation problem. It is a richer description of housing instability than either ontology can produce alone. The collision zone holds both edge sets simultaneously.</p>
+
+    <p>In agent-mediated knowledge graphs, this becomes an active resource. An agent traversing the graph can detect when it has crossed an <a class="concept" data-term="Ontology Boundary" data-def="The edge between two distinct knowledge schemas — where one set of concepts, hierarchies, and relationship types transitions to another. Crossing an ontology boundary means the vocabulary, inferred relationships, and implicit assumptions all shift simultaneously. These boundaries are typically invisible in flat graph representations." data-link="https://en.wikipedia.org/wiki/Ontology_alignment">ontology boundary</a> and treat that transition as a cue for novel inference. The collision zone is where the graph's own structure points at what it does not yet know.</p>
+
+    <div class="sh">Spatializing the collision</div>
+
+    <p>In a flat knowledge graph, ontology boundaries are invisible. Alignment algorithms try to erase the seams. Spatial representation does the opposite — it makes seams navigable. Position ontology nodes such that conceptual distance corresponds to spatial distance, and collision zones become physically inhabitable. Two clusters approaching each other without fully merging create a liminal zone where edges from both schemas coexist. An agent or human entering this zone is entering the territory both maps were approximating.</p>
+
+    <div class="code-block">
+      <span class="lbl">Collision zone as spatial primitive</span>
+      <pre><span class="cm">// Standard approach: resolve conflicts, produce unified graph</span>
+<span class="k">align</span>(ontology_a, ontology_b) → merged_graph
+
+<span class="cm">// Spatial approach: preserve collision, make it navigable</span>
+<span class="k">layer</span>(ontology_a, z=<span class="s">0</span>)
+<span class="k">layer</span>(ontology_b, z=<span class="s">1</span>)
+<span class="k">collision_zone</span> = nodes_within_epsilon(a, b)  <span class="cm">// high-value zone</span>
+<span class="k">render</span>(collision_zone, luminance=<span class="s">HIGH</span>, traversable=<span class="s">TRUE</span>)
+
+<span class="cm">// Agents query the collision zone directly
+// humans navigate into it
+// both encounter richer signal than either layer alone</span></pre>
+    </div>
+
+    <div class="sh">For reinforcement learning environments</div>
+
+    <p>If an agent is rewarded for traversing ontology collision zones — not resolving them, but extracting inference from their structure — you get fundamentally different learned behavior than standard <a class="concept" data-term="Knowledge Graph Completion" data-def="The task of predicting missing nodes or edges in a knowledge graph based on existing structure and patterns. Standard completion treats gaps as errors to fill in. The ontology collision framing treats certain gaps as productive ambiguity — zones where two different schema perspectives coexist and generate novel inference that neither schema could produce alone." data-link="https://en.wikipedia.org/wiki/Knowledge_graph_embedding">KG completion</a>. The agent learns that ambiguity is resource, not obstacle. This is also the behavioral model you want for human-AI collaborative spaces: the most generative conversations happen at the edge of frameworks, not inside them.</p>
+
+    <div class="tags">
+      <span class="tag">knowledge graphs</span><span class="tag">multi-ontology</span>
+      <span class="tag">semantic spaces</span><span class="tag">reinforcement learning</span>
+      <span class="tag">spatial inference</span>
+    </div>
+  </article>
+
+  <!-- ══ POST 04 ══ -->
+  <article class="post" id="post-3">
+    <div class="post-number">Post <span>04 / 05</span></div>
+    <h2>The <em>Territorial</em><br>Circuit</h2>
+    <p class="subtitle">Why agent swarms model healthy collaboration — and what humans absorb from working alongside them</p>
+
+    <p>Timothy Leary's <a class="concept" data-term="Eight-Circuit Model of Consciousness" data-def="A model proposed by Timothy Leary and expanded by Robert Anton Wilson in Prometheus Rising. It describes eight neurological circuits: Circuit 1 handles survival; Circuit 2 handles territorial/emotional status; Circuit 3 handles rational thought; higher circuits handle increasingly rare and complex states. Most adult human behavior is governed by Circuits 1–4." data-link="https://en.wikipedia.org/wiki/Eight-circuit_model_of_consciousness">eight-circuit model of consciousness</a>, expanded by Robert Anton Wilson in Prometheus Rising, describes Circuit 2 as the emotional-territorial circuit. It governs status, dominance, submission, and turf. Pre-verbal, largely unconscious, and the source of most organizational dysfunction.</p>
+
+    <p>Meetings that should be about solving problems become about who controls the room. Code reviews that should be about quality become about whose architecture wins. Knowledge graphs that should grow through contribution become defended territories. Circuit 2 is not malicious — it is ancient, and it runs beneath the level at which professional norms operate.</p>
+
+    <div class="pull">
+      <p>Agents don't have Circuit 2. They don't get defensive about their code being rewritten. They don't hoard context to maintain relevance. They don't sandbag to protect territory.</p>
+    </div>
+
+    <div class="sh">What agent coordination actually looks like</div>
+
+    <p>In the Agent Flywheel stack, when an agent finishes a bead and the next optimal bead belongs to another cluster, it claims it — not as a power move, but as the mathematically correct next action given the <a class="concept" data-term="Dependency Graph" data-def="A directed graph where nodes represent tasks or components and edges represent 'must complete before' relationships. The shape of the graph encodes optimal execution order for any number of parallel workers, computed mechanically via PageRank and betweenness centrality rather than negotiated politically." data-link="https://en.wikipedia.org/wiki/Dependency_graph">dependency graph</a>. When two agents approach the same file, the first to register a reservation gets it and the other moves on without friction. No ego recovery. No territorial re-establishment.</p>
+
+    <p>This is what Circuit 3 (rational) and Circuit 4 (social) human collaboration aspires to and Circuit 2 keeps sabotaging. Agent swarms demonstrate, concretely and visibly, what that aspiration looks like in practice.</p>
+
+    <div class="sh">The osmosis effect</div>
+
+    <p>Working alongside agents in a shared spatial environment — where agent behavior is visible as movement, presence, and activity in the same space you inhabit — creates a behavioral reference point that does not exist in current tool interfaces. When you see that an agent handed off a high-priority bead without friction and the work continued, the territorial behavior that would have occurred in a human team becomes visibly unnecessary. Not through argument or training. Through witnessed contrast.</p>
+
+    <p>The spatial environment makes agent behavior legible at the same register that human territorial behavior operates — pre-verbal, ambient, visible in movement and presence. You cannot rationalize people out of Circuit 2 patterns. You can expose them to environments where those patterns produce visible inefficiency compared to environments where they are absent.</p>
+
+    <div class="diagram">
+<span class="ha">CIRCUIT 2 PATTERN</span>          <span class="hb">AGENT EQUIVALENT</span>
+
+Hoard context for relevance  →  Embed context in bead descriptions
+Defend code territory        →  Advisory reservations, not rigid locks
+Escalate conflicts           →  Targeted messages, not broadcast
+Resist handoffs              →  Fungible agents — any bead, any agent
+Require status acknowledgment →  Commit history as neutral record
+    </div>
+
+    <div class="sh">The adaptive space</div>
+
+    <p>A space that adapts to the user — reading where someone is operating on the circuit stack in a given moment, not to surveil but to respond — could offer different views to different states. High-territorial energy gets clear ownership, clear boundaries, low ambiguity. <a class="concept" data-term="Flow State" data-def="A mental state of complete absorption in a task, described by psychologist Mihaly Csikszentmihalyi. Characterized by loss of self-consciousness, high focus, and intrinsic reward. In Leary's model, roughly corresponds to Circuit 3/4 operation — past the territorial anxiety of Circuit 2." data-link="https://en.wikipedia.org/wiki/Flow_(psychology)">Flow state</a> gets relational emphasis, visible clusters, serendipitous proximity. The space meets you where you are. Circuit 2 calms down when there is nothing to fight over and the work keeps moving.</p>
+
+    <div class="tags">
+      <span class="tag">leary 8-circuit</span><span class="tag">robert anton wilson</span>
+      <span class="tag">organizational behavior</span><span class="tag">agent coordination</span>
+      <span class="tag">spatial design</span><span class="tag">human-ai teams</span>
+    </div>
+  </article>
+
+  <!-- ══ POST 05 ══ -->
+  <article class="post" id="post-4">
+    <div class="post-number">Post <span>05 / 05</span></div>
+    <h2>Can an Agent<br><em>Read a Room?</em></h2>
+    <p class="subtitle">The answer is yes — if the room is built to be read. Here is the minimum architecture for that.</p>
+
+    <p>An agent cannot read a room the way a human reads one. It cannot pick up on tension, energy, what is not being said, the social topology of who is clustered with whom and why. These are not in the <a class="concept" data-term="Point Cloud" data-def="A set of data points in three-dimensional space, typically captured by a 3D scanner or depth camera. Point clouds represent the surface geometry of physical environments — they capture shape but not meaning. An agent reading a point cloud gets geometry, not semantics." data-link="https://en.wikipedia.org/wiki/Point_cloud">point cloud</a>. They are in the delta between states, and in the meaning embedded by the people using the space.</p>
+
+    <p>But this frames the question wrongly. The question is not "can an agent perceive raw space." The question is: <strong>what is the minimum instrumentation that makes a space legible to a non-human reader without destroying what makes it legible to humans?</strong></p>
+
+    <div class="pull">
+      <p>An agent can read a room you've built to be readable. The design challenge is building one.</p>
+    </div>
+
+    <div class="sh">What legibility requires</div>
+
+    <p><strong>STATE</strong> — what is actually true right now, encoded in the structure of the space. Not described in a document the agent loads. Ambient. Always current. Bead status as node luminance. File reservation as spatial occupation. Agent activity as presence and motion.</p>
+
+    <p><strong>TOPOLOGY</strong> — spatial position encoding relationship. Things that are coupled are close. Things that block many others are large and bright. This is the one property humans process pre-consciously that agents currently compute algebraically. A human glancing at dim nodes around a bright central one understands "bottleneck" before reading a single character.</p>
+
+    <p><strong>TEMPORALITY</strong> — how state is changing, visible in the space itself. A node brightening means work is unblocking. A cluster going still means blockage. For agents, this is a <a class="concept" data-term="Delta Feed" data-def="A stream of state-change events rather than full state snapshots. More compute-efficient for agents monitoring large graphs — they process only what changed, not the entire current state on every poll." data-link="https://en.wikipedia.org/wiki/Change_data_capture">delta feed</a> — the same state transitions described as structured events rather than animation.</p>
+
+    <p><strong>ATTENTION</strong> — where humans and agents are currently focused. Eye tracking in <a class="concept" data-term="XR (Extended Reality)" data-def="An umbrella term covering virtual reality (VR), augmented reality (AR), and mixed reality (MR). XR environments blend digital and physical space in varying degrees — from fully immersive virtual worlds to digital overlays on physical surroundings via passthrough cameras." data-link="https://en.wikipedia.org/wiki/Extended_reality">XR</a>, gaze direction, cursor position — attention signals that, fed into the semantic layer, become readable by agents as priority signals without requiring explicit instruction.</p>
+
+    <div class="sh">The minimum build</div>
+
+    <div class="code-block">
+      <span class="lbl">Viable prototype — existing stack</span>
+      <pre><span class="cm">// Data sources</span>
+<span class="k">bv</span> --robot-insights --json  <span class="cm">// PageRank + betweenness per bead</span>
+<span class="k">br</span> list --json              <span class="cm">// status, dependencies, assignments</span>
+<span class="k">agent-mail</span> reservations     <span class="cm">// current file occupation</span>
+
+<span class="cm">// Spatial mapping</span>
+node.position   = <span class="s">dependency_depth</span>  <span class="cm">// y-axis</span>
+node.size       = <span class="s">pagerank_score</span>    <span class="cm">// scale</span>
+node.luminance  = <span class="s">betweenness</span>       <span class="cm">// brightness</span>
+node.color      = <span class="s">domain_label</span>      <span class="cm">// hue</span>
+node.motion     = <span class="s">status_delta</span>      <span class="cm">// animation</span>
+node.occupation = <span class="s">reservation</span>       <span class="cm">// agent presence</span>
+
+<span class="cm">// Render targets</span>
+<span class="k">three.js</span>   → human perceptual layer
+<span class="k">webspatial</span> → xr passthrough
+<span class="k">json feed</span>  → agent semantic layer (same source, same truth)
+
+<span class="cm">// Write-back</span>
+gaze / gesture → priority_delta → bead update → agent reads</pre>
+    </div>
+
+    <div class="sh">The deeper answer</div>
+
+    <p>A space that an agent can read is a space where meaning has been encoded into structure rather than left implicit in human perception. Not "here is knowledge organized spatially" but "here is a space where meaning accretes and both human navigation and agent traversal update the same underlying graph."</p>
+
+    <p>A <a class="concept" data-term="Semantic Threshold" data-def="A navigable boundary in a spatial environment that carries meaning — where crossing it changes the ontological context, the set of available inferences, or the operational rules. Unlike a purely visual portal, a semantic threshold is readable by agents as a state transition, not just by humans as a visual event. The space's geometry becomes its language." data-link="">semantic threshold</a> — a portal in XR — is not just a visual. Entering it means something. That is the kind of intentional gesture that carries legible meaning to an agent without requiring explicit instruction.</p>
+
+    <p>The answer to "can an agent read a room" is: <strong>yes, if the room speaks in a language the agent can parse and the human does not have to learn.</strong> The work described across this series — bead graphs, semantic layers, ontology collision zones, adaptive spatial environments — is that translation layer, assembled from different directions toward the same architecture. One weekend of <a class="concept" data-term="Three.js" data-def="An open-source JavaScript library that abstracts WebGL — enabling 3D graphics, scenes, and interactive environments in the browser without plugins. The standard toolkit for spatial web prototyping, used alongside WebXR for immersive device support." data-link="https://threejs.org">Three.js</a> work away, for anyone who has already built the underlying graph.</p>
+
+    <div class="tags">
+      <span class="tag">spatial computing</span><span class="tag">three.js</span>
+      <span class="tag">webxr</span><span class="tag">agent perception</span>
+      <span class="tag">semantic layer</span><span class="tag">legible environments</span>
+    </div>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-line">Series by <span style="color:var(--accent-a)">innercartography</span> &nbsp;·&nbsp; March 2026</div>
+    <div class="footer-line"><a href="https://github.com/innercartography" target="_blank">github.com/innercartography ↗</a></div>
+  </footer>
+
+</div>
+
+<script>
+// ── PARTICLE FIELD ──
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W, H, nodes = [], fr = 0;
+
+const COLORS = ['#00cfff','#cf00ff','#00ffb3','#7eb8f7'];
+
+function resize() { W = cv.width = window.innerWidth; H = cv.height = window.innerHeight; }
+
+function init() {
+  resize(); nodes = [];
+  const n = Math.min(55, Math.floor(W * H / 17000));
+  for (let i = 0; i < n; i++) nodes.push({
+    x: Math.random()*W, y: Math.random()*H,
+    vx: (Math.random()-.5)*.18, vy: (Math.random()-.5)*.18,
+    r: Math.random()*1.4+.4, ph: Math.random()*Math.PI*2,
+    col: COLORS[Math.floor(Math.random()*COLORS.length)]
+  });
+}
+
+function hexRgb(h) { return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)]; }
+
+function draw() {
+  ctx.clearRect(0,0,W,H); fr++;
+  nodes.forEach(n => {
+    n.x += n.vx; n.y += n.vy;
+    if(n.x<0||n.x>W) n.vx*=-1;
+    if(n.y<0||n.y>H) n.vy*=-1;
+  });
+  for(let i=0;i<nodes.length;i++) for(let j=i+1;j<nodes.length;j++) {
+    const dx=nodes[i].x-nodes[j].x, dy=nodes[i].y-nodes[j].y;
+    const d=Math.sqrt(dx*dx+dy*dy);
+    if(d<150){ ctx.beginPath(); ctx.moveTo(nodes[i].x,nodes[i].y); ctx.lineTo(nodes[j].x,nodes[j].y); ctx.strokeStyle=`rgba(0,207,255,${(1-d/150)*.05})`; ctx.lineWidth=.5; ctx.stroke(); }
+  }
+  nodes.forEach(n => {
+    const br = .22+.18*Math.sin(fr*.007+n.ph);
+    const [r,g,b] = hexRgb(n.col);
+    ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(${r},${g},${b},${br})`; ctx.fill();
+  });
+  requestAnimationFrame(draw);
+}
+
+// ── NAV ──
+function show(i) {
+  document.querySelectorAll('.post').forEach((p,j) => p.classList.toggle('visible', j===i));
+  document.querySelectorAll('.nav-pill').forEach((p,j) => p.classList.toggle('active', j===i));
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// ── CONCEPT PANELS ──
+// Build inline def-panel inside each .concept on page load
+document.querySelectorAll('.concept').forEach(el => {
+  const term = el.dataset.term || '';
+  const def  = el.dataset.def  || '';
+  const link = el.dataset.link || '';
+
+  const panel = document.createElement('div');
+  panel.className = 'def-panel';
+
+  const linkHtml = link
+    ? `<a class="dp-link" href="${link}" target="_blank" rel="noopener">Read more ↗</a>`
+    : '';
+
+  panel.innerHTML = `
+    <div class="dp-term">
+      <span>${term}</span>
+      <span class="dp-close" title="close">✕</span>
+    </div>
+    <div class="dp-def">${def}</div>
+    ${linkHtml}
+  `;
+
+  el.appendChild(panel);
+
+  // Toggle open on click
+  el.addEventListener('click', e => {
+    e.stopPropagation();
+    const isOpen = el.classList.contains('open');
+
+    // Close all others first
+    document.querySelectorAll('.concept.open').forEach(o => o.classList.remove('open'));
+
+    if (!isOpen) {
+      el.classList.add('open');
+
+      // Flip panel if it would overflow right edge
+      const rect = el.getBoundingClientRect();
+      const panelW = 300;
+      if (rect.left + panelW > window.innerWidth - 16) {
+        panel.classList.add('flip-right');
+      } else {
+        panel.classList.remove('flip-right');
+      }
+    }
+  });
+
+  // Close button
+  panel.querySelector('.dp-close').addEventListener('click', e => {
+    e.stopPropagation();
+    el.classList.remove('open');
+  });
+
+  // Prevent panel clicks from bubbling to document
+  panel.addEventListener('click', e => e.stopPropagation());
+});
+
+// Click anywhere outside closes all panels
+document.addEventListener('click', () => {
+  document.querySelectorAll('.concept.open').forEach(o => o.classList.remove('open'));
+});
+
+window.addEventListener('resize', resize);
+init(); draw();
+</script>
+</body>
+</html>
